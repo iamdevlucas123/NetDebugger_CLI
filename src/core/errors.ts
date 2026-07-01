@@ -1,6 +1,6 @@
 import type { ResultError } from "./result.js";
 
-//The function can have one or more error messsages
+// Defines the stable error codes used by diagnostics, tests, and JSON output.
 export type NetDebuggerErrorCode =
   | "DNS_ERROR"
   | "TCP_CONNECTION_ERROR"
@@ -15,6 +15,7 @@ export interface NetDebuggerErrorOptions {
   cause?: unknown;
 }
 
+// Base error for known NetDebugger domain failures with stable diagnostic codes.
 export class NetDebuggerError extends Error {
   readonly code: NetDebuggerErrorCode;
   readonly target?: string;
@@ -46,48 +47,56 @@ export class NetDebuggerError extends Error {
   }
 }
 
+// Represents DNS resolution failures for a hostname or domain.
 export class DnsError extends NetDebuggerError {
   constructor(message: string, options?: NetDebuggerErrorOptions) {
     super("DNS_ERROR", message, options);
   }
 }
 
+// Represents failures while opening or establishing a TCP connection.
 export class TcpConnectionError extends NetDebuggerError {
   constructor(message: string, options?: NetDebuggerErrorOptions) {
     super("TCP_CONNECTION_ERROR", message, options);
   }
 }
 
+// Represents TLS handshake, certificate, or protocol negotiation failures.
 export class TlsHandshakeError extends NetDebuggerError {
   constructor(message: string, options?: NetDebuggerErrorOptions) {
     super("TLS_HANDSHAKE_ERROR", message, options);
   }
 }
 
+// Represents HTTP request failures that happen before a complete response is available.
 export class HttpRequestError extends NetDebuggerError {
   constructor(message: string, options?: NetDebuggerErrorOptions) {
     super("HTTP_REQUEST_ERROR", message, options);
   }
 }
 
+// Represents operations that exceed their configured timeout.
 export class TimeoutError extends NetDebuggerError {
   constructor(message: string, options?: NetDebuggerErrorOptions) {
     super("TIMEOUT_ERROR", message, options);
   }
 }
 
+// Represents user input that cannot be normalized into a valid URL or target.
 export class InvalidUrlError extends NetDebuggerError {
   constructor(message: string, options?: NetDebuggerErrorOptions) {
     super("INVALID_URL_ERROR", message, options);
   }
 }
 
+// Checks whether an unknown value is a NetDebugger domain error.
 export function isNetDebuggerError(
   error: unknown,
 ): error is NetDebuggerError {
   return error instanceof NetDebuggerError;
 }
 
+// Converts known and unknown thrown values into the serializable ResultError shape.
 export function toResultError(error: unknown): ResultError {
   if (isNetDebuggerError(error)) {
     const details: Record<string, unknown> = {};

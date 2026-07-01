@@ -2,11 +2,14 @@
   "name": "netdebugger_cli",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/main.js",
+  "bin": {
+    "netdebug": "dist/main.js"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "build": "tsc",
-    "dev": "ts-node src/main.ts",
+    "dev": "npm run build && node dist/main.js",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
