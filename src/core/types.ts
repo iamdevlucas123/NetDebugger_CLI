@@ -1,3 +1,5 @@
+import type { ProbeResult } from "./result.js";
+
 export type Severity = "info" | "warning" | "critical";
 
 export type OutputFormat = "console" | "json";
@@ -9,6 +11,8 @@ export type DiagnosticCommand =
   | "tls"
   | "http"
   | "trace";
+
+export type { ProbeResult } from "./result.js";
 
 export interface SerializableError {
   code: string;
@@ -22,13 +26,6 @@ export interface Finding {
   message: string;
   recommendation?: string;
   source?: DiagnosticCommand | "analyzer";
-}
-
-export interface ProbeResult<TData> {
-  ok: boolean;
-  durationMs: number;
-  data?: TData;
-  error?: SerializableError;
 }
 
 export interface SharedCommandOptions {
