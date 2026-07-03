@@ -130,6 +130,31 @@ test("runDoctor orchestrates HTTPS probes, analyzers, and latency samples", asyn
           findings: [],
         };
       },
+      analyzeLatency: ({ dns, tcp, tls, httpRuns }) => {
+        order.push("latency");
+        assert.equal(dns.durationMs, 1);
+        assert.equal(tcp.durationMs, 2);
+        assert.equal(tls.durationMs, 3);
+        assert.equal(httpRuns.length, 3);
+
+        return {
+          phases: {
+            dnsLookupMs: 1,
+            tcpConnectMs: 2,
+            tlsHandshakeMs: 3,
+            httpTotalMs: 360,
+          },
+          stats: {
+            samples: 3,
+            minMs: 120,
+            maxMs: 360,
+            averageMs: 240,
+            p50Ms: 240,
+            p95Ms: 360,
+          },
+          findings: [],
+        };
+      },
       now: () => new Date("2026-07-03T00:00:00.000Z"),
     },
   );
@@ -143,6 +168,7 @@ test("runDoctor orchestrates HTTPS probes, analyzers, and latency samples", asyn
     "http",
     "headers",
     "security",
+    "latency",
   ]);
   assert.equal(report.result.ok, true);
   assert.equal(report.result.target.protocol, "https:");
@@ -155,6 +181,7 @@ test("runDoctor orchestrates HTTPS probes, analyzers, and latency samples", asyn
   assert.equal(report.result.probes.tls.status, "ok");
   assert.equal(report.headerAnalysis.findings.length, 0);
   assert.equal(report.securityHeaderAnalysis.findings.length, 0);
+  assert.equal(report.latencyAnalysis.phases.dnsLookupMs, 1);
 });
 
 test("runDoctor skips TLS for HTTP targets", async () => {

@@ -88,6 +88,7 @@ function renderDoctorReport(report: DoctorReport, verbose: boolean): void {
   );
   console.log(`Total time: ${result.durationMs}ms`);
   console.log(`Runs: ${report.httpRuns.length}`);
+  renderLatencyPhases(report);
 
   if (result.latency !== undefined) {
     console.log(
@@ -96,6 +97,20 @@ function renderDoctorReport(report: DoctorReport, verbose: boolean): void {
   }
 
   renderFindingSummary(result.findings, verbose);
+}
+
+// Prints measured latency phases when the doctor service collected them.
+function renderLatencyPhases(report: DoctorReport): void {
+  const phases = report.latencyAnalysis?.phases;
+
+  if (phases === undefined) {
+    return;
+  }
+
+  console.log(`DNS time: ${formatDuration(phases.dnsLookupMs)}`);
+  console.log(`TCP time: ${formatDuration(phases.tcpConnectMs)}`);
+  console.log(`TLS time: ${formatDuration(phases.tlsHandshakeMs)}`);
+  console.log(`HTTP total time: ${formatDuration(phases.httpTotalMs)}`);
 }
 
 // Converts a probe status into a printable command status.
@@ -109,6 +124,11 @@ function formatProbeStatus(status: "ok" | "error" | undefined): string {
   }
 
   return "SKIPPED";
+}
+
+// Formats optional millisecond durations for console output.
+function formatDuration(value: number | undefined): string {
+  return value !== undefined ? `${value}ms` : "none";
 }
 
 // Prints important findings and optionally all findings in verbose mode.

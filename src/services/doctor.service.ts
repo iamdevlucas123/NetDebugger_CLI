@@ -6,13 +6,16 @@ import {
   analyzeSecurityHeaders,
   type SecurityHeaderAnalysis,
 } from "../analyzers/security-header.analyzer.js";
+import {
+  analyzeLatency,
+  type LatencyAnalysis,
+} from "../analyzers/latency.analyzer.js";
 import { InvalidUrlError } from "../core/errors.js";
 import type {
   DiagnosticResult,
   DnsProbeData,
   Finding,
   HttpProbeData,
-  LatencyStats,
   NormalizedTarget,
   ProbeResult,
   TcpProbeData,
@@ -34,6 +37,7 @@ export interface DoctorReport {
   httpRuns: Array<ProbeResult<HttpProbeData>>;
   headerAnalysis?: HeaderAnalysis;
   securityHeaderAnalysis?: SecurityHeaderAnalysis;
+  latencyAnalysis?: LatencyAnalysis;
 }
 
 export interface DoctorServiceDependencies {
@@ -43,6 +47,7 @@ export interface DoctorServiceDependencies {
   probeHttp?: typeof probeHttp;
   analyzeHeaders?: typeof analyzeHeaders;
   analyzeSecurityHeaders?: typeof analyzeSecurityHeaders;
+  analyzeLatency?: typeof analyzeLatency;
   now?: () => Date;
 }
 
@@ -82,11 +87,12 @@ export async function runDoctor(
     http?.status === "ok"
       ? doctorDependencies.analyzeSecurityHeaders(http.data.headers)
       : undefined;
-  const latency = calculateLatencyStats(
-    httpRuns
-      .filter((result): result is ProbeResult<HttpProbeData> & { status: "ok" } => result.status === "ok")
-      .map((result) => result.durationMs),
-  );
+  const latencyAnalysis = doctorDependencies.analyzeLatency({
+    dns,
+    tcp,
+    ...(tls !== undefined ? { tls } : {}),
+    httpRuns,
+  });
   const completedAt = getNow(dependencies).getTime();
   const findings = buildFindings({
     dns,
@@ -95,7 +101,7 @@ export async function runDoctor(
     http,
     headerAnalysis,
     securityHeaderAnalysis,
-    latency,
+    latencyAnalysis,
   });
   const probes: DiagnosticResult["probes"] = {
     dns,
@@ -121,8 +127,8 @@ export async function runDoctor(
     findings,
   };
 
-  if (latency !== undefined) {
-    result.latency = latency;
+  if (latencyAnalysis.stats !== undefined) {
+    result.latency = latencyAnalysis.stats;
   }
 
   return buildDoctorReport({
@@ -130,6 +136,7 @@ export async function runDoctor(
     httpRuns,
     headerAnalysis,
     securityHeaderAnalysis,
+    latencyAnalysis,
   });
 }
 
@@ -187,6 +194,7 @@ function buildDoctorDependencies(
     | "probeHttp"
     | "analyzeHeaders"
     | "analyzeSecurityHeaders"
+    | "analyzeLatency"
   >
 > {
   return {
@@ -197,6 +205,7 @@ function buildDoctorDependencies(
     analyzeHeaders: dependencies.analyzeHeaders ?? analyzeHeaders,
     analyzeSecurityHeaders:
       dependencies.analyzeSecurityHeaders ?? analyzeSecurityHeaders,
+    analyzeLatency: dependencies.analyzeLatency ?? analyzeLatency,
   };
 }
 
@@ -221,35 +230,6 @@ async function runHttpSamples(
   return results;
 }
 
-// Calculates latency statistics from successful HTTP samples.
-function calculateLatencyStats(durations: number[]): LatencyStats | undefined {
-  if (durations.length === 0) {
-    return undefined;
-  }
-
-  const sortedDurations = [...durations].sort((left, right) => left - right);
-  const total = sortedDurations.reduce((sum, value) => sum + value, 0);
-
-  return {
-    samples: sortedDurations.length,
-    minMs: sortedDurations[0] ?? 0,
-    maxMs: sortedDurations[sortedDurations.length - 1] ?? 0,
-    averageMs: Math.round(total / sortedDurations.length),
-    p50Ms: percentile(sortedDurations, 50),
-    p95Ms: percentile(sortedDurations, 95),
-  };
-}
-
-// Reads a nearest-rank percentile from sorted latency values.
-function percentile(sortedValues: number[], percentileValue: number): number {
-  const index = Math.max(
-    0,
-    Math.ceil((percentileValue / 100) * sortedValues.length) - 1,
-  );
-
-  return sortedValues[index] ?? 0;
-}
-
 // Builds probe, analyzer, latency, and diagnosis findings.
 function buildFindings(input: {
   dns: ProbeResult<DnsProbeData>;
@@ -258,7 +238,7 @@ function buildFindings(input: {
   http: ProbeResult<HttpProbeData> | undefined;
   headerAnalysis: HeaderAnalysis | undefined;
   securityHeaderAnalysis: SecurityHeaderAnalysis | undefined;
-  latency: LatencyStats | undefined;
+  latencyAnalysis: LatencyAnalysis;
 }): Finding[] {
   return [
     ...buildProbeFindings(input.dns, "dns"),
@@ -267,7 +247,7 @@ function buildFindings(input: {
     ...(input.http !== undefined ? buildProbeFindings(input.http, "http") : []),
     ...(input.headerAnalysis?.findings ?? []),
     ...(input.securityHeaderAnalysis?.findings ?? []),
-    ...buildLatencyFindings(input.latency),
+    ...input.latencyAnalysis.findings,
     ...buildDiagnosisFindings(input),
   ];
 }
@@ -287,23 +267,6 @@ function buildProbeFindings<TData>(
       code: result.error.code,
       message: result.error.message,
       source,
-    },
-  ];
-}
-
-// Emits latency findings when repeated HTTP samples look slow.
-function buildLatencyFindings(latency: LatencyStats | undefined): Finding[] {
-  if (latency === undefined || latency.p95Ms < 1000) {
-    return [];
-  }
-
-  return [
-    {
-      severity: latency.p95Ms >= 3000 ? "critical" : "warning",
-      code: "HIGH_HTTP_LATENCY",
-      message: `HTTP p95 latency is ${latency.p95Ms}ms.`,
-      recommendation: "Inspect server response time, network path, and redirects.",
-      source: "doctor",
     },
   ];
 }
@@ -396,6 +359,7 @@ function buildDoctorReport(input: {
   httpRuns: Array<ProbeResult<HttpProbeData>>;
   headerAnalysis: HeaderAnalysis | undefined;
   securityHeaderAnalysis: SecurityHeaderAnalysis | undefined;
+  latencyAnalysis: LatencyAnalysis | undefined;
 }): DoctorReport {
   const report: DoctorReport = {
     result: input.result,
@@ -408,6 +372,10 @@ function buildDoctorReport(input: {
 
   if (input.securityHeaderAnalysis !== undefined) {
     report.securityHeaderAnalysis = input.securityHeaderAnalysis;
+  }
+
+  if (input.latencyAnalysis !== undefined) {
+    report.latencyAnalysis = input.latencyAnalysis;
   }
 
   return report;
