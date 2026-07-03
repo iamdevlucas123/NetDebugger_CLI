@@ -1,5 +1,6 @@
 import { Command } from "commander";
 
+import { registerDoctorCommand } from "./commands/doctor.command.js";
 import { registerDnsCommand } from "./commands/dns.command.js";
 import { registerHttpCommand } from "./commands/http.command.js";
 import { registerTcpCommand } from "./commands/tcp.command.js";
@@ -15,6 +16,7 @@ export function createCli(): Command {
     .version("1.0.0")
     .showHelpAfterError();
 
+  registerDoctorCommand(program);
   registerDnsCommand(program);
   registerTcpCommand(program);
   registerTlsCommand(program);
