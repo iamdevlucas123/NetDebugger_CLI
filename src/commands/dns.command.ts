@@ -1,3 +1,4 @@
+//This allows write node commands on Terminal
 import type { Command } from "commander";
 
 import { resolveDns } from "../probes/dns.probe.js";

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 
 import { registerDnsCommand } from "./commands/dns.command.js";
+import { registerTcpCommand } from "./commands/tcp.command.js";
 
 // Creates and configures the NetDebugger CLI program.
 export function createCli(): Command {
@@ -13,6 +14,7 @@ export function createCli(): Command {
     .showHelpAfterError();
 
   registerDnsCommand(program);
+  registerTcpCommand(program);
 
   return program;
 }
