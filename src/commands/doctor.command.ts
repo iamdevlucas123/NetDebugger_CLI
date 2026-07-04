@@ -1,11 +1,9 @@
 import type { Command } from "commander";
 
 import { InvalidUrlError } from "../core/errors.js";
-import type { Finding } from "../core/types.js";
-import {
-  runDoctor,
-  type DoctorReport,
-} from "../services/doctor.service.js";
+import { renderDoctorConsoleReport } from "../output/console.reporter.js";
+import { renderDoctorJsonReport } from "../output/json.reporter.js";
+import { runDoctor } from "../services/doctor.service.js";
 
 interface DoctorCommandOptions {
   timeout: string;
@@ -40,9 +38,13 @@ export function registerDoctorCommand(program: Command): void {
         });
 
         if (options.json === true) {
-          console.log(JSON.stringify(report, null, 2));
+          console.log(renderDoctorJsonReport(report));
         } else {
-          renderDoctorReport(report, Boolean(options.verbose));
+          console.log(
+            renderDoctorConsoleReport(report, {
+              verbose: Boolean(options.verbose),
+            }),
+          );
         }
 
         if (!report.result.ok) {
@@ -65,85 +67,6 @@ function parsePositiveInteger(value: string, label: string): number | null {
   }
 
   return parsed;
-}
-
-// Prints a compact human-readable doctor report.
-function renderDoctorReport(report: DoctorReport, verbose: boolean): void {
-  const { result } = report;
-  const http = result.probes.http;
-
-  console.log(`Doctor: ${result.ok ? "OK" : "ISSUES"}`);
-  console.log(`URL: ${result.target.href ?? result.target.input}`);
-  console.log(`DNS: ${formatProbeStatus(result.probes.dns?.status)}`);
-  console.log(`TCP: ${formatProbeStatus(result.probes.tcp?.status)}`);
-  console.log(
-    `TLS: ${result.target.expectsTls ? formatProbeStatus(result.probes.tls?.status) : "SKIPPED"}`,
-  );
-  console.log(
-    `HTTP: ${
-      http?.status === "ok"
-        ? `${http.data.statusCode} ${http.data.statusText ?? ""}`.trimEnd()
-        : formatProbeStatus(http?.status)
-    }`,
-  );
-  console.log(`Total time: ${result.durationMs}ms`);
-  console.log(`Runs: ${report.httpRuns.length}`);
-  renderLatencyPhases(report);
-
-  if (result.latency !== undefined) {
-    console.log(
-      `Latency avg/p95: ${result.latency.averageMs}ms/${result.latency.p95Ms}ms`,
-    );
-  }
-
-  renderFindingSummary(result.findings, verbose);
-}
-
-// Prints measured latency phases when the doctor service collected them.
-function renderLatencyPhases(report: DoctorReport): void {
-  const phases = report.latencyAnalysis?.phases;
-
-  if (phases === undefined) {
-    return;
-  }
-
-  console.log(`DNS time: ${formatDuration(phases.dnsLookupMs)}`);
-  console.log(`TCP time: ${formatDuration(phases.tcpConnectMs)}`);
-  console.log(`TLS time: ${formatDuration(phases.tlsHandshakeMs)}`);
-  console.log(`HTTP total time: ${formatDuration(phases.httpTotalMs)}`);
-}
-
-// Converts a probe status into a printable command status.
-function formatProbeStatus(status: "ok" | "error" | undefined): string {
-  if (status === "ok") {
-    return "OK";
-  }
-
-  if (status === "error") {
-    return "ERROR";
-  }
-
-  return "SKIPPED";
-}
-
-// Formats optional millisecond durations for console output.
-function formatDuration(value: number | undefined): string {
-  return value !== undefined ? `${value}ms` : "none";
-}
-
-// Prints important findings and optionally all findings in verbose mode.
-function renderFindingSummary(findings: Finding[], verbose: boolean): void {
-  const visibleFindings = verbose
-    ? findings
-    : findings.filter((finding) => finding.severity !== "info");
-
-  console.log(`Findings: ${visibleFindings.length}`);
-
-  for (const finding of visibleFindings) {
-    console.log(
-      `- [${finding.severity}] ${finding.code}: ${finding.message}`,
-    );
-  }
 }
 
 // Prints doctor command failures that happen before a report is produced.
