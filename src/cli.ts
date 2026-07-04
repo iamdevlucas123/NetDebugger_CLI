@@ -8,6 +8,7 @@ import { registerPingCommand } from "./commands/ping.command.js";
 import { registerTcpCommand } from "./commands/tcp.command.js";
 import { registerTlsCommand } from "./commands/tls.command.js";
 import { registerTraceCommand } from "./commands/trace.command.js";
+import { registerWatchCommand } from "./commands/watch.command.js";
 
 // Creates and configures the NetDebugger CLI program.
 export function createCli(): Command {
@@ -27,6 +28,7 @@ export function createCli(): Command {
   registerHttpCommand(program);
   registerPingCommand(program);
   registerTraceCommand(program);
+  registerWatchCommand(program);
 
   return program;
 }
