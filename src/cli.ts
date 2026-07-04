@@ -1,5 +1,6 @@
 import { Command } from "commander";
 
+import { registerCompareCommand } from "./commands/compare.command.js";
 import { registerDoctorCommand } from "./commands/doctor.command.js";
 import { registerDnsCommand } from "./commands/dns.command.js";
 import { registerHttpCommand } from "./commands/http.command.js";
@@ -19,6 +20,7 @@ export function createCli(): Command {
     .showHelpAfterError();
 
   registerDoctorCommand(program);
+  registerCompareCommand(program);
   registerDnsCommand(program);
   registerTcpCommand(program);
   registerTlsCommand(program);
