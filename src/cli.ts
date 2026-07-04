@@ -3,8 +3,10 @@ import { Command } from "commander";
 import { registerDoctorCommand } from "./commands/doctor.command.js";
 import { registerDnsCommand } from "./commands/dns.command.js";
 import { registerHttpCommand } from "./commands/http.command.js";
+import { registerPingCommand } from "./commands/ping.command.js";
 import { registerTcpCommand } from "./commands/tcp.command.js";
 import { registerTlsCommand } from "./commands/tls.command.js";
+import { registerTraceCommand } from "./commands/trace.command.js";
 
 // Creates and configures the NetDebugger CLI program.
 export function createCli(): Command {
@@ -21,6 +23,8 @@ export function createCli(): Command {
   registerTcpCommand(program);
   registerTlsCommand(program);
   registerHttpCommand(program);
+  registerPingCommand(program);
+  registerTraceCommand(program);
 
   return program;
 }
