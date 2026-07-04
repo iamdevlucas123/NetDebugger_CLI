@@ -29,7 +29,8 @@ function renderSummary(report: DoctorReport): string {
   return [
     `Target: ${payload.target}`,
     `Status: ${payload.status.toUpperCase()}`,
-    `Score: ${payload.score}`,
+    `Health Score: ${payload.score}/100`,
+    `Main issue: ${payload.mainIssue}`,
     `Runs: ${report.httpRuns.length}`,
     `Total time: ${report.result.durationMs}ms`,
   ].join("\n");

@@ -14,6 +14,7 @@ export interface DoctorJsonPayload {
   target: string;
   status: JsonReportStatus;
   score: number;
+  mainIssue: string;
   dns: ProbeResult<DnsProbeData> | null;
   tcp: ProbeResult<TcpProbeData> | null;
   tls: ProbeResult<TlsProbeData> | null;
@@ -33,10 +34,13 @@ export function renderDoctorJsonReport(report: DoctorReport): string {
 
 // Builds the serializable doctor JSON payload.
 export function buildDoctorJsonPayload(report: DoctorReport): DoctorJsonPayload {
+  const diagnosis = getDiagnosisSummary(report);
+
   return {
     target: report.result.target.href ?? report.result.target.input,
-    status: getReportStatus(report.result.findings),
-    score: calculateScore(report.result.findings),
+    status: diagnosis.status,
+    score: diagnosis.score,
+    mainIssue: diagnosis.mainIssue,
     dns: report.result.probes.dns ?? null,
     tcp: report.result.probes.tcp ?? null,
     tls: report.result.probes.tls ?? null,
@@ -46,7 +50,28 @@ export function buildDoctorJsonPayload(report: DoctorReport): DoctorJsonPayload 
       security: report.securityHeaderAnalysis ?? null,
       latency: report.latencyAnalysis ?? null,
     },
-    diagnosis: report.result.findings,
+    diagnosis: report.diagnosisAnalysis?.findings ?? report.result.findings,
+  };
+}
+
+// Reads the diagnosis engine summary or falls back to finding-derived values.
+function getDiagnosisSummary(report: DoctorReport): {
+  status: JsonReportStatus;
+  score: number;
+  mainIssue: string;
+} {
+  if (report.diagnosisAnalysis !== undefined) {
+    return {
+      status: report.diagnosisAnalysis.status,
+      score: report.diagnosisAnalysis.score,
+      mainIssue: report.diagnosisAnalysis.mainIssue,
+    };
+  }
+
+  return {
+    status: getReportStatus(report.result.findings),
+    score: calculateScore(report.result.findings),
+    mainIssue: getMainIssue(report.result.findings),
   };
 }
 
@@ -78,4 +103,13 @@ function getReportStatus(findings: Finding[]): JsonReportStatus {
   }
 
   return "ok";
+}
+
+// Selects the most important finding message for fallback summaries.
+function getMainIssue(findings: Finding[]): string {
+  const finding =
+    findings.find((item) => item.severity === "critical") ??
+    findings.find((item) => item.severity === "warning");
+
+  return finding?.message ?? "No major issue detected.";
 }

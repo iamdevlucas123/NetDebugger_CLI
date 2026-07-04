@@ -155,6 +155,27 @@ test("runDoctor orchestrates HTTPS probes, analyzers, and latency samples", asyn
           findings: [],
         };
       },
+      analyzeDiagnosis: ({ dns, tcp, tls, http }) => {
+        order.push("diagnosis");
+        assert.equal(dns.status, "ok");
+        assert.equal(tcp.status, "ok");
+        assert.equal(tls.status, "ok");
+        assert.equal(http.status, "ok");
+
+        return {
+          status: "ok",
+          score: 100,
+          mainIssue: "No major issue detected.",
+          findings: [
+            {
+              severity: "info",
+              code: "DIAGNOSIS_HEALTHY",
+              message: "No major issue detected.",
+              source: "doctor",
+            },
+          ],
+        };
+      },
       now: () => new Date("2026-07-03T00:00:00.000Z"),
     },
   );
@@ -169,6 +190,7 @@ test("runDoctor orchestrates HTTPS probes, analyzers, and latency samples", asyn
     "headers",
     "security",
     "latency",
+    "diagnosis",
   ]);
   assert.equal(report.result.ok, true);
   assert.equal(report.result.target.protocol, "https:");
@@ -182,6 +204,7 @@ test("runDoctor orchestrates HTTPS probes, analyzers, and latency samples", asyn
   assert.equal(report.headerAnalysis.findings.length, 0);
   assert.equal(report.securityHeaderAnalysis.findings.length, 0);
   assert.equal(report.latencyAnalysis.phases.dnsLookupMs, 1);
+  assert.equal(report.diagnosisAnalysis.score, 100);
 });
 
 test("runDoctor skips TLS for HTTP targets", async () => {

@@ -10,6 +10,10 @@ import {
   analyzeLatency,
   type LatencyAnalysis,
 } from "../analyzers/latency.analyzer.js";
+import {
+  analyzeDiagnosis,
+  type DiagnosisAnalysis,
+} from "../analyzers/diagnosis.engine.js";
 import { InvalidUrlError } from "../core/errors.js";
 import type {
   DiagnosticResult,
@@ -38,6 +42,7 @@ export interface DoctorReport {
   headerAnalysis?: HeaderAnalysis;
   securityHeaderAnalysis?: SecurityHeaderAnalysis;
   latencyAnalysis?: LatencyAnalysis;
+  diagnosisAnalysis?: DiagnosisAnalysis;
 }
 
 export interface DoctorServiceDependencies {
@@ -48,6 +53,7 @@ export interface DoctorServiceDependencies {
   analyzeHeaders?: typeof analyzeHeaders;
   analyzeSecurityHeaders?: typeof analyzeSecurityHeaders;
   analyzeLatency?: typeof analyzeLatency;
+  analyzeDiagnosis?: typeof analyzeDiagnosis;
   now?: () => Date;
 }
 
@@ -93,6 +99,15 @@ export async function runDoctor(
     ...(tls !== undefined ? { tls } : {}),
     httpRuns,
   });
+  const diagnosisAnalysis = doctorDependencies.analyzeDiagnosis({
+    dns,
+    tcp,
+    ...(tls !== undefined ? { tls } : {}),
+    ...(http !== undefined ? { http } : {}),
+    ...(headerAnalysis !== undefined ? { headerAnalysis } : {}),
+    ...(securityHeaderAnalysis !== undefined ? { securityHeaderAnalysis } : {}),
+    latencyAnalysis,
+  });
   const completedAt = getNow(dependencies).getTime();
   const findings = buildFindings({
     dns,
@@ -102,6 +117,7 @@ export async function runDoctor(
     headerAnalysis,
     securityHeaderAnalysis,
     latencyAnalysis,
+    diagnosisAnalysis,
   });
   const probes: DiagnosticResult["probes"] = {
     dns,
@@ -137,6 +153,7 @@ export async function runDoctor(
     headerAnalysis,
     securityHeaderAnalysis,
     latencyAnalysis,
+    diagnosisAnalysis,
   });
 }
 
@@ -195,6 +212,7 @@ function buildDoctorDependencies(
     | "analyzeHeaders"
     | "analyzeSecurityHeaders"
     | "analyzeLatency"
+    | "analyzeDiagnosis"
   >
 > {
   return {
@@ -206,6 +224,7 @@ function buildDoctorDependencies(
     analyzeSecurityHeaders:
       dependencies.analyzeSecurityHeaders ?? analyzeSecurityHeaders,
     analyzeLatency: dependencies.analyzeLatency ?? analyzeLatency,
+    analyzeDiagnosis: dependencies.analyzeDiagnosis ?? analyzeDiagnosis,
   };
 }
 
@@ -239,6 +258,7 @@ function buildFindings(input: {
   headerAnalysis: HeaderAnalysis | undefined;
   securityHeaderAnalysis: SecurityHeaderAnalysis | undefined;
   latencyAnalysis: LatencyAnalysis;
+  diagnosisAnalysis: DiagnosisAnalysis;
 }): Finding[] {
   return [
     ...buildProbeFindings(input.dns, "dns"),
@@ -248,7 +268,7 @@ function buildFindings(input: {
     ...(input.headerAnalysis?.findings ?? []),
     ...(input.securityHeaderAnalysis?.findings ?? []),
     ...input.latencyAnalysis.findings,
-    ...buildDiagnosisFindings(input),
+    ...input.diagnosisAnalysis.findings,
   ];
 }
 
@@ -267,71 +287,6 @@ function buildProbeFindings<TData>(
       code: result.error.code,
       message: result.error.message,
       source,
-    },
-  ];
-}
-
-// Creates a high-level diagnosis from the ordered probe results.
-function buildDiagnosisFindings(input: {
-  dns: ProbeResult<DnsProbeData>;
-  tcp: ProbeResult<TcpProbeData>;
-  tls: ProbeResult<TlsProbeData> | undefined;
-  http: ProbeResult<HttpProbeData> | undefined;
-}): Finding[] {
-  if (input.dns.status === "error") {
-    return [
-      {
-        severity: "critical",
-        code: "DOCTOR_DNS_FAILURE",
-        message: "Diagnosis points to DNS because the host could not be resolved.",
-        recommendation: "Check the domain name and authoritative DNS records.",
-        source: "doctor",
-      },
-    ];
-  }
-
-  if (input.tcp.status === "error") {
-    return [
-      {
-        severity: "critical",
-        code: "DOCTOR_TCP_FAILURE",
-        message: "Diagnosis reached the host but the TCP connection failed.",
-        recommendation: "Check firewall rules, routing, and whether the service port is open.",
-        source: "doctor",
-      },
-    ];
-  }
-
-  if (input.tls?.status === "error") {
-    return [
-      {
-        severity: "critical",
-        code: "DOCTOR_TLS_FAILURE",
-        message: "Diagnosis connected over TCP but TLS negotiation failed.",
-        recommendation: "Check certificate, SNI, TLS versions, and cipher support.",
-        source: "doctor",
-      },
-    ];
-  }
-
-  if (input.http?.status === "error") {
-    return [
-      {
-        severity: "critical",
-        code: "DOCTOR_HTTP_FAILURE",
-        message: "Diagnosis completed lower network checks but the HTTP request failed.",
-        recommendation: "Check application availability and HTTP server behavior.",
-        source: "doctor",
-      },
-    ];
-  }
-
-  return [
-    {
-      severity: "info",
-      code: "DOCTOR_COMPLETED",
-      message: "Doctor completed DNS, TCP, TLS when needed, HTTP, and header analysis.",
-      source: "doctor",
     },
   ];
 }
@@ -360,6 +315,7 @@ function buildDoctorReport(input: {
   headerAnalysis: HeaderAnalysis | undefined;
   securityHeaderAnalysis: SecurityHeaderAnalysis | undefined;
   latencyAnalysis: LatencyAnalysis | undefined;
+  diagnosisAnalysis: DiagnosisAnalysis | undefined;
 }): DoctorReport {
   const report: DoctorReport = {
     result: input.result,
@@ -376,6 +332,10 @@ function buildDoctorReport(input: {
 
   if (input.latencyAnalysis !== undefined) {
     report.latencyAnalysis = input.latencyAnalysis;
+  }
+
+  if (input.diagnosisAnalysis !== undefined) {
+    report.diagnosisAnalysis = input.diagnosisAnalysis;
   }
 
   return report;

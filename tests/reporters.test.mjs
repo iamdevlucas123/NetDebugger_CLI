@@ -133,6 +133,19 @@ function createReport() {
       },
       findings: [],
     },
+    diagnosisAnalysis: {
+      status: "warn",
+      score: 95,
+      mainIssue: "Content-Security-Policy is missing.",
+      findings: [
+        {
+          severity: "warning",
+          code: "DIAGNOSIS_CSP_MISSING",
+          message: "Content-Security-Policy is missing.",
+          source: "doctor",
+        },
+      ],
+    },
   };
 }
 
@@ -153,13 +166,15 @@ test("buildDoctorJsonPayload returns stable automation fields", () => {
 
   assert.equal(payload.target, "https://example.com/");
   assert.equal(payload.status, "warn");
-  assert.equal(payload.score, 90);
+  assert.equal(payload.score, 95);
+  assert.equal(payload.mainIssue, "Content-Security-Policy is missing.");
   assert.equal(payload.dns.status, "ok");
   assert.equal(payload.tcp.status, "ok");
   assert.equal(payload.tls.status, "ok");
   assert.equal(payload.http.status, "ok");
   assert.equal(payload.headers.security.findings.length, 1);
-  assert.equal(payload.diagnosis.length, 2);
+  assert.equal(payload.diagnosis.length, 1);
+  assert.equal(payload.diagnosis[0].code, "DIAGNOSIS_CSP_MISSING");
 });
 
 test("renderDoctorJsonReport prints formatted JSON", () => {
@@ -175,7 +190,8 @@ test("renderDoctorConsoleReport combines summary, table, latency, and findings",
 
   assert.match(output, /Target: https:\/\/example.com\//);
   assert.match(output, /Status: WARN/);
-  assert.match(output, /Score: 90/);
+  assert.match(output, /Health Score: 95\/100/);
+  assert.match(output, /Main issue: Content-Security-Policy is missing/);
   assert.match(output, /Latency:/);
   assert.match(output, /Findings: 1/);
 });
