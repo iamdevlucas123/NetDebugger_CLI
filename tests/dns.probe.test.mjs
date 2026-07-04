@@ -39,6 +39,20 @@ test("resolveDns returns ok for a valid domain", async () => {
   assert.deepEqual(result.data.addresses, ["93.184.216.34"]);
 });
 
+test("resolveDns returns ok when at least one address family resolves", async () => {
+  const result = await resolveDns("example.com", {
+    resolve4: createSuccessfulResolver(["93.184.216.34"]),
+    resolve6: createFailingResolver("IPv6 lookup failed"),
+    now: createClock([300, 315]),
+  });
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.durationMs, 15);
+  assert.deepEqual(result.data.ipv4, ["93.184.216.34"]);
+  assert.deepEqual(result.data.ipv6, []);
+  assert.deepEqual(result.data.addresses, ["93.184.216.34"]);
+});
+
 test("resolveDns returns error when no DNS records resolve", async () => {
   const result = await resolveDns("missing.example", {
     resolve4: createFailingResolver("IPv4 lookup failed"),

@@ -121,3 +121,12 @@ test("probeHttp returns connection error for closed local ports", async () => {
   assert.equal(result.error.code, "HTTP_REQUEST_ERROR");
   assert.equal(result.data, null);
 });
+
+test("probeHttp rejects unsupported URL protocols without network access", async () => {
+  const result = await probeHttp("ftp://example.com/file");
+
+  assert.equal(result.status, "error");
+  assert.equal(result.data, null);
+  assert.equal(result.error.code, "HTTP_REQUEST_ERROR");
+  assert.match(result.error.message, /Only http and https URLs are supported/);
+});

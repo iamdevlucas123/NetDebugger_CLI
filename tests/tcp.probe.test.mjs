@@ -71,6 +71,31 @@ class TimeoutSocket extends EventEmitter {
   }
 }
 
+class ErrorSocket extends EventEmitter {
+  remoteAddress = undefined;
+  remoteFamily = undefined;
+  destroyed = false;
+
+  // Accepts timeout configuration without triggering it.
+  setTimeout(_timeoutMs, _handler) {
+    return this;
+  }
+
+  // Simulates a socket connection failure.
+  connect(_options) {
+    setImmediate(() => {
+      this.emit("error", new Error("connection refused"));
+    });
+    return this;
+  }
+
+  // Marks the fake socket as destroyed after the probe settles.
+  destroy() {
+    this.destroyed = true;
+    return this;
+  }
+}
+
 test("connectTcp returns ok when a local TCP server accepts the connection", async () => {
   const server = createServer((socket) => {
     socket.end();
@@ -104,6 +129,27 @@ test("connectTcp returns error when a local TCP port is closed", async () => {
   assert.equal(result.target, `127.0.0.1:${port}`);
   assert.equal(result.data, null);
   assert.equal(result.error.code, "TCP_CONNECTION_ERROR");
+});
+
+test("connectTcp returns connection errors from an injected socket", async () => {
+  const fakeSocket = new ErrorSocket();
+
+  const result = await connectTcp(
+    "blocked.example",
+    443,
+    { timeoutMs: 1000 },
+    {
+      createSocket: () => fakeSocket,
+      now: createClock([100, 125]),
+    },
+  );
+
+  assert.equal(result.status, "error");
+  assert.equal(result.target, "blocked.example:443");
+  assert.equal(result.durationMs, 25);
+  assert.equal(result.error.code, "TCP_CONNECTION_ERROR");
+  assert.equal(result.error.details.cause, "connection refused");
+  assert.equal(fakeSocket.destroyed, true);
 });
 
 test("connectTcp returns timeout error when the socket times out", async () => {

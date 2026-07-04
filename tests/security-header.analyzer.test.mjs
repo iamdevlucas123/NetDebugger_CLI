@@ -38,6 +38,19 @@ test("analyzeSecurityHeaders classifies missing headers as warnings or errors", 
   );
 });
 
+test("analyzeSecurityHeaders reports missing CSP as a critical finding", () => {
+  const result = analyzeSecurityHeaders({
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+  });
+  const finding = result.findings.find(
+    (item) => item.code === "SECURITY_HEADER_CONTENT_SECURITY_POLICY",
+  );
+
+  assert.equal(finding?.severity, "critical");
+  assert.equal(finding?.message, "CSP header is missing.");
+});
+
 test("analyzeSecurityHeaders flags invalid X-Content-Type-Options", () => {
   const result = analyzeSecurityHeaders({
     "Content-Security-Policy": "default-src 'self'",

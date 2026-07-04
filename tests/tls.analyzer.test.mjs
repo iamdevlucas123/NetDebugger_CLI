@@ -46,4 +46,5 @@ test("analyzeTlsCertificate marks expired certificates as critical", () => {
   assert.equal(result.expired, true);
   assert.equal(result.findings[0].severity, "critical");
   assert.equal(result.findings[0].code, "TLS_CERTIFICATE_EXPIRED");
+  assert.equal(result.findings[0].message, "TLS certificate expired 29 day(s) ago.");
 });

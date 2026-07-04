@@ -107,4 +107,6 @@ test("analyzeLatency emits findings for slow DNS, TCP, TLS, and HTTP p95", () =>
       "HIGH_TLS_LATENCY",
     ],
   );
+  assert.equal(analysis.findings[0].severity, "warning");
+  assert.equal(analysis.findings[0].message, "HTTP p95 latency is 1400ms.");
 });

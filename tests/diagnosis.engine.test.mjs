@@ -151,6 +151,10 @@ test("analyzeDiagnosis distinguishes HTTP 5xx and 4xx responses", () => {
   assert.equal(serverError.status, "error");
   assert.equal(serverError.score, 70);
   assert.equal(serverError.findings[0].code, "DIAGNOSIS_HTTP_5XX");
+  assert.equal(
+    serverError.findings[0].message,
+    "The server responded, but the application or backend is failing.",
+  );
   assert.equal(clientError.status, "warn");
   assert.equal(clientError.score, 85);
   assert.equal(clientError.findings[0].code, "DIAGNOSIS_HTTP_4XX");
