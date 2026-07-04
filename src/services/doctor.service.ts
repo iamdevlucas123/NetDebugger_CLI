@@ -159,10 +159,11 @@ export async function runDoctor(
 
 // Parses and normalizes a doctor input URL.
 function parseDoctorTarget(input: string): NormalizedTarget {
+  const normalizedInput = normalizeDoctorInput(input);
   let url: URL;
 
   try {
-    url = new URL(input);
+    url = new URL(normalizedInput);
   } catch (cause) {
     throw new InvalidUrlError("Invalid URL for doctor command.", {
       target: input,
@@ -188,6 +189,17 @@ function parseDoctorTarget(input: string): NormalizedTarget {
     href: url.href,
     expectsTls: url.protocol === "https:",
   };
+}
+
+// Adds a default HTTPS protocol when the user provides only a hostname.
+function normalizeDoctorInput(input: string): string {
+  const trimmedInput = input.trim();
+
+  if (/^[a-z][a-z\d+\-.]*:\/\//i.test(trimmedInput)) {
+    return trimmedInput;
+  }
+
+  return `https://${trimmedInput}`;
 }
 
 // Selects the explicit URL port or the protocol default.

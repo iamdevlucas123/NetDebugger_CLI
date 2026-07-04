@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/main.js",
   "bin": {
-    "netdebug": "dist/main.js"
+    "netdebug": "./dist/main.js"
   },
   "scripts": {
     "test": "npm run build && node --test tests/*.test.mjs",

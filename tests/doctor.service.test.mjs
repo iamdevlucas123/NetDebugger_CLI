@@ -236,9 +236,38 @@ test("runDoctor skips TLS for HTTP targets", async () => {
   assert.equal(report.result.probes.http.status, "ok");
 });
 
+test("runDoctor defaults missing protocol inputs to HTTPS", async () => {
+  const report = await runDoctor(
+    "example.com/path",
+    {},
+    {
+      resolveDns: async (hostname) => dnsOk(hostname),
+      connectTcp: async (hostname, port) => tcpOk(hostname, port),
+      probeTls: async (hostname, port) => tlsOk(hostname, port),
+      probeHttp: async (url) => httpOk(url, 50),
+      analyzeHeaders: () => ({
+        headers: [],
+        cookieIssues: [],
+        findings: [],
+      }),
+      analyzeSecurityHeaders: () => ({
+        checks: [],
+        findings: [],
+      }),
+    },
+  );
+
+  assert.equal(report.result.target.input, "example.com/path");
+  assert.equal(report.result.target.href, "https://example.com/path");
+  assert.equal(report.result.target.protocol, "https:");
+  assert.equal(report.result.target.port, 443);
+  assert.equal(report.result.target.path, "/path");
+  assert.equal(report.result.target.expectsTls, true);
+});
+
 test("runDoctor rejects unsupported or invalid URLs", async () => {
   await assert.rejects(
-    () => runDoctor("example.com"),
+    () => runDoctor("://not-a-url"),
     InvalidUrlError,
   );
 

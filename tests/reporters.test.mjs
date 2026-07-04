@@ -51,6 +51,7 @@ function createReport() {
       statusText: "OK",
       headers: {
         "content-type": "text/html",
+        server: "nginx",
       },
       redirects: [],
       timing: {
@@ -63,6 +64,7 @@ function createReport() {
     severity: "warning",
     code: "SECURITY_HEADER_CONTENT_SECURITY_POLICY",
     message: "CSP header is missing.",
+    recommendation: "Add a Content-Security-Policy header.",
     source: "analyzer",
   };
 
@@ -194,4 +196,15 @@ test("renderDoctorConsoleReport combines summary, table, latency, and findings",
   assert.match(output, /Main issue: Content-Security-Policy is missing/);
   assert.match(output, /Latency:/);
   assert.match(output, /Findings: 1/);
+  assert.match(output, /Possible action: Add a Content-Security-Policy header/);
+});
+
+test("renderDoctorConsoleReport can include selected response headers", () => {
+  const output = renderDoctorConsoleReport(createReport(), {
+    includeHeaders: true,
+  });
+
+  assert.match(output, /Headers:/);
+  assert.match(output, /Content-Type: text\/html/);
+  assert.match(output, /Server: nginx/);
 });

@@ -5,6 +5,7 @@ import { renderDoctorTable } from "./table.reporter.js";
 
 export interface ConsoleReporterOptions {
   verbose?: boolean;
+  includeHeaders?: boolean;
 }
 
 // Renders the doctor report as human-readable terminal output.
@@ -15,11 +16,35 @@ export function renderDoctorConsoleReport(
   return [
     renderSummary(report),
     renderDoctorTable(report),
+    renderHeaders(report, Boolean(options.includeHeaders)),
     renderLatency(report),
     renderFindings(report.result.findings, Boolean(options.verbose)),
   ]
     .filter((section) => section.length > 0)
     .join("\n\n");
+}
+
+// Renders selected HTTP headers when requested by the user.
+function renderHeaders(report: DoctorReport, includeHeaders: boolean): string {
+  if (!includeHeaders) {
+    return "";
+  }
+
+  const http = report.result.probes.http;
+
+  if (http?.status !== "ok") {
+    return "Headers: unavailable";
+  }
+
+  const headers = http.data.headers;
+
+  return [
+    "Headers:",
+    `Content-Type: ${formatHeader(headers["content-type"])}`,
+    `Cache-Control: ${formatHeader(headers["cache-control"])}`,
+    `Server: ${formatHeader(headers.server)}`,
+    `Location: ${formatHeader(headers.location)}`,
+  ].join("\n");
 }
 
 // Renders the top-level doctor status summary.
@@ -76,10 +101,30 @@ function renderFindings(findings: Finding[], verbose: boolean): string {
 
   return [
     `Findings: ${visibleFindings.length}`,
-    ...visibleFindings.map(
-      (finding) => `- [${finding.severity}] ${finding.code}: ${finding.message}`,
-    ),
+    ...visibleFindings.flatMap((finding) => formatFinding(finding)),
   ].join("\n");
+}
+
+// Formats one finding with its recommendation when available.
+function formatFinding(finding: Finding): string[] {
+  const lines = [
+    `- [${finding.severity}] ${finding.code}: ${finding.message}`,
+  ];
+
+  if (finding.recommendation !== undefined) {
+    lines.push(`  Possible action: ${finding.recommendation}`);
+  }
+
+  return lines;
+}
+
+// Formats a header value for console output.
+function formatHeader(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  return value ?? "missing";
 }
 
 // Formats optional millisecond durations for console output.
