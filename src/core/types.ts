@@ -55,6 +55,9 @@ export interface DnsProbeData {
   ipv4: string[];
   ipv6: string[];
   addresses: string[];
+  resolver: "direct" | "system-fallback";
+  warning?: string;
+  directResolverErrors?: Record<string, unknown>;
 }
 
 export interface TcpProbeData {

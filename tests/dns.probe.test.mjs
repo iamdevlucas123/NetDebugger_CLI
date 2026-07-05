@@ -22,6 +22,11 @@ function createFailingResolver(message) {
   };
 }
 
+// Creates a system DNS lookup resolver that returns family-tagged addresses.
+function createSuccessfulLookup(addresses) {
+  return async () => addresses;
+}
+
 test("resolveDns returns ok for a valid domain", async () => {
   const result = await resolveDns("example.com", {
     resolve4: createSuccessfulResolver(["93.184.216.34"]),
@@ -37,6 +42,7 @@ test("resolveDns returns ok for a valid domain", async () => {
   assert.deepEqual(result.data.ipv4, ["93.184.216.34"]);
   assert.deepEqual(result.data.ipv6, []);
   assert.deepEqual(result.data.addresses, ["93.184.216.34"]);
+  assert.equal(result.data.resolver, "direct");
 });
 
 test("resolveDns returns ok when at least one address family resolves", async () => {
@@ -51,6 +57,32 @@ test("resolveDns returns ok when at least one address family resolves", async ()
   assert.deepEqual(result.data.ipv4, ["93.184.216.34"]);
   assert.deepEqual(result.data.ipv6, []);
   assert.deepEqual(result.data.addresses, ["93.184.216.34"]);
+  assert.equal(result.data.resolver, "direct");
+});
+
+test("resolveDns falls back to the system resolver when direct DNS fails", async () => {
+  const result = await resolveDns("google.com", {
+    resolve4: createFailingResolver("queryA ECONNREFUSED google.com"),
+    resolve6: createFailingResolver("queryAaaa ECONNREFUSED google.com"),
+    lookup: createSuccessfulLookup([
+      { address: "2800:3f0:4001:838::200e", family: 6 },
+    ]),
+    now: createClock([500, 505, 509]),
+  });
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.target, "google.com");
+  assert.equal(result.durationMs, 9);
+  assert.equal(result.error, null);
+  assert.equal(result.data.resolver, "system-fallback");
+  assert.deepEqual(result.data.ipv4, []);
+  assert.deepEqual(result.data.ipv6, ["2800:3f0:4001:838::200e"]);
+  assert.deepEqual(result.data.addresses, ["2800:3f0:4001:838::200e"]);
+  assert.match(result.data.warning, /system resolver worked/);
+  assert.match(
+    result.data.directResolverErrors.ipv4Error,
+    /queryA ECONNREFUSED/,
+  );
 });
 
 test("resolveDns returns error when no DNS records resolve", async () => {

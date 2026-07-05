@@ -28,7 +28,13 @@ function renderDnsResult(result: ProbeResult<DnsProbeData>): void {
     console.log(`IPv4: ${formatAddresses(result.data.ipv4)}`);
     console.log(`IPv6: ${formatAddresses(result.data.ipv6)}`);
     console.log(`DNS lookup: ${result.durationMs}ms`);
+    console.log(`Resolver: ${formatResolver(result.data.resolver)}`);
     console.log("Status: OK");
+
+    if (result.data.warning !== undefined) {
+      console.log(`Warning: ${result.data.warning}`);
+    }
+
     return;
   }
 
@@ -42,4 +48,9 @@ function renderDnsResult(result: ProbeResult<DnsProbeData>): void {
 // Formats a list of DNS addresses for terminal output.
 function formatAddresses(addresses: string[]): string {
   return addresses.length > 0 ? addresses.join(", ") : "none";
+}
+
+// Converts the resolver source into terminal-friendly text.
+function formatResolver(resolver: DnsProbeData["resolver"]): string {
+  return resolver === "system-fallback" ? "system fallback" : "direct";
 }

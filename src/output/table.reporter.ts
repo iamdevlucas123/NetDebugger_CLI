@@ -39,9 +39,19 @@ function buildDnsRow(report: DoctorReport): string[] {
   return [
     "DNS",
     "OK",
-    `${dns.data.addresses.length} records`,
+    formatDnsResult(dns),
     formatDuration(dns.durationMs),
   ];
+}
+
+// Formats DNS rows with resolver source context.
+function formatDnsResult(
+  dns: Extract<DoctorReport["result"]["probes"]["dns"], { status: "ok" }>,
+): string {
+  const suffix =
+    dns.data.resolver === "system-fallback" ? " via system resolver" : "";
+
+  return `${dns.data.addresses.length} records${suffix}`;
 }
 
 // Builds the TCP row from the TCP probe result.
