@@ -161,6 +161,7 @@ test("renderDoctorTable prints the diagnostic rows", () => {
   assert.match(output, /port open/);
   assert.match(output, /TLSv1\.3/);
   assert.match(output, /CSP header is missing/);
+  assert.match(output, /Headers[\s\S]*WARN/);
 });
 
 test("buildDoctorJsonPayload returns stable automation fields", () => {

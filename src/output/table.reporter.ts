@@ -114,7 +114,7 @@ function buildHeadersRow(report: DoctorReport): string[] {
     ...(report.headerAnalysis?.findings ?? []),
     ...(report.securityHeaderAnalysis?.findings ?? []),
   ];
-  const status = getFindingsStatus(findings);
+  const status = getHeaderFindingsStatus(findings);
   const result = getHeadersResult(findings);
 
   return ["Headers", status, result, "-"];
@@ -138,13 +138,9 @@ function formatHttpResult(result: ProbeResult<HttpProbeData>): string {
   return `${result.data.statusCode} ${result.data.statusText ?? ""}`.trimEnd();
 }
 
-// Classifies analyzer findings into a table status.
-function getFindingsStatus(findings: Finding[]): RowStatus {
-  if (findings.some((finding) => finding.severity === "critical")) {
-    return "ERROR";
-  }
-
-  if (findings.some((finding) => finding.severity === "warning")) {
+// Classifies header findings as warnings because they do not block connectivity.
+function getHeaderFindingsStatus(findings: Finding[]): RowStatus {
+  if (findings.length > 0) {
     return "WARN";
   }
 
